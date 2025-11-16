@@ -1,0 +1,83 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgis/postgis:14-3.3
+    container_name: taxytac-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: taxytac
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./backend/migrations:/migrations
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - taxytac-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: taxytac-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - taxytac-network
+
+  emqx:
+    image: emqx/emqx:5.0
+    container_name: taxytac-emqx
+    environment:
+      - EMQX_NAME=emqx
+      - EMQX_HOST=127.0.0.1
+    ports:
+      - "1883:1883"      # MQTT
+      - "8083:8083"      # WebSocket MQTT
+      - "8084:8084"      # WSS MQTT
+      - "8883:8883"      # MQTT SSL
+      - "18083:18083"    # Dashboard
+    healthcheck:
+      test: ["CMD-SHELL", "emqx_ctl status || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - taxytac-network
+
+  backend:
+    build: ./backend
+    container_name: taxytac-backend
+    env_file:
+      - ./backend/.env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      emqx:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend:/app
+    restart: unless-stopped
+    networks:
+      - taxytac-network
+
+volumes:
+  db_data:
+    driver: local
+
+networks:
+  taxytac-network:
+    driver: bridge
