@@ -2,6 +2,9 @@
 
 Este repositorio contiene un boilerplate inicial para una app tipo Uber para motos (moto bajaj): backend en Go (Gin), Postgres+PostGIS, Redis, broker MQTT (EMQX), y una app Flutter mínima.
 
+> **📖 ¿Primera vez aquí?** Comienza con **[QUICKSTART.md](QUICKSTART.md)** para setup en < 10 minutos  
+> **📚 Buscar algo específico?** Ver **[INDEX.md](INDEX.md)** - Índice completo de documentación
+
 ## 📦 Contenido
 
 - **`/backend`**: Servicio en Go con endpoints REST y WebSocket para location updates
