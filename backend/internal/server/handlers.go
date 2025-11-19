@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -10,12 +11,32 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var wsUpgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool { return true },
+	CheckOrigin:     func(r *http.Request) bool { return true },
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+}
+
+// hashPassword genera un hash bcrypt de la contraseña
+func hashPassword(password string) (string, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+	return string(hash), nil
+}
+
+// verifyPassword compara una contraseña con su hash
+func verifyPassword(hashedPassword, password string) error {
+	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+}
+
+// generateMockJWT genera un token simple (mock) - en producción usar JWT real
+func generateMockJWT(userID, email, role string) string {
+	return fmt.Sprintf("mock.jwt.%s.%s.%s.%d", userID, email, role, time.Now().Unix())
 }
 
 // LocationPayload representa la ubicación enviada por el driver
@@ -39,10 +60,11 @@ func (s *Server) HealthCheck(c *gin.Context) {
 // Register crea un nuevo usuario (rider o driver)
 func (s *Server) Register(c *gin.Context) {
 	var body struct {
-		Name  string `json:"name" binding:"required"`
-		Phone string `json:"phone" binding:"required"`
-		Email string `json:"email"`
-		Role  string `json:"role" binding:"required"` // rider|driver
+		Name     string `json:"name" binding:"required"`
+		Phone    string `json:"phone"`
+		Email    string `json:"email" binding:"required"`
+		Password string `json:"password" binding:"required,min=6"`
+		Role     string `json:"role"` // rider|driver (opcional, por defecto passenger)
 	}
 
 	if err := c.ShouldBindJSON(&body); err != nil {
@@ -50,23 +72,52 @@ func (s *Server) Register(c *gin.Context) {
 		return
 	}
 
+	// Si no se proporciona role, usar "passenger" por defecto
+	if body.Role == "" {
+		body.Role = "passenger"
+	}
+
 	// Validar role
-	if body.Role != "rider" && body.Role != "driver" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Role must be 'rider' or 'driver'"})
+	if body.Role != "passenger" && body.Role != "rider" && body.Role != "driver" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Role must be 'passenger', 'rider' or 'driver'"})
+		return
+	}
+
+	// Verificar si el email ya existe
+	var existingID string
+	checkQuery := `SELECT id FROM users WHERE email = $1 LIMIT 1`
+	err := s.db.QueryRow(context.Background(), checkQuery, body.Email).Scan(&existingID)
+	if err == nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "Email already registered"})
+		return
+	}
+
+	// Hash de la contraseña con bcrypt
+	hashedPassword, err := hashPassword(body.Password)
+	if err != nil {
+		s.log.WithError(err).Error("Failed to hash password")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process password"})
 		return
 	}
 
 	// Crear usuario en DB
 	userID := uuid.New().String()
+
+	// Si no tiene phone, usar un valor dummy
+	phone := body.Phone
+	if phone == "" {
+		phone = "000000000"
+	}
+
 	query := `
-		INSERT INTO users (id, name, phone, email, role, created_at)
-		VALUES ($1, $2, $3, $4, $5, now())
+		INSERT INTO users (id, name, phone, email, password_hash, role, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, now())
 		RETURNING id
 	`
 
 	var returnedID string
-	err := s.db.QueryRow(context.Background(), query,
-		userID, body.Name, body.Phone, body.Email, body.Role).Scan(&returnedID)
+	err = s.db.QueryRow(context.Background(), query,
+		userID, body.Name, phone, body.Email, hashedPassword, body.Role).Scan(&returnedID)
 
 	if err != nil {
 		s.log.WithError(err).Error("Failed to create user")
@@ -86,18 +137,25 @@ func (s *Server) Register(c *gin.Context) {
 		}
 	}
 
+	// Generar token JWT simple (mock)
+	token := generateMockJWT(returnedID, body.Email, body.Role)
+
 	c.JSON(http.StatusCreated, gin.H{
-		"id":   returnedID,
-		"name": body.Name,
-		"role": body.Role,
+		"token": token,
+		"user": gin.H{
+			"id":    returnedID,
+			"name":  body.Name,
+			"email": body.Email,
+			"role":  body.Role,
+		},
 	})
 }
 
-// Login autentica un usuario (mock JWT)
+// Login autentica un usuario con email/password
 func (s *Server) Login(c *gin.Context) {
 	var body struct {
-		Phone string `json:"phone" binding:"required"`
-		OTP   string `json:"otp"`
+		Email    string `json:"email" binding:"required"`
+		Password string `json:"password" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&body); err != nil {
@@ -105,14 +163,48 @@ func (s *Server) Login(c *gin.Context) {
 		return
 	}
 
-	// TODO: Verificar OTP real (Twilio, etc.)
-	// Por ahora retornamos un token mock
-	token := "mock.jwt.token." + body.Phone
+	// Buscar usuario por email
+	var user struct {
+		ID           string
+		Name         string
+		Email        string
+		Role         string
+		PasswordHash string
+	}
+
+	query := `
+		SELECT id, name, email, role, password_hash
+		FROM users
+		WHERE email = $1
+		LIMIT 1
+	`
+
+	err := s.db.QueryRow(context.Background(), query, body.Email).Scan(
+		&user.ID, &user.Name, &user.Email, &user.Role, &user.PasswordHash,
+	)
+
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+		return
+	}
+
+	// Verificar contraseña
+	if err := verifyPassword(user.PasswordHash, body.Password); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+		return
+	}
+
+	// Generar token JWT simple (mock)
+	token := generateMockJWT(user.ID, user.Email, user.Role)
 
 	c.JSON(http.StatusOK, gin.H{
-		"token":        token,
-		"refresh_token": "mock.refresh.token",
-		"expires_in":    900, // 15 minutos
+		"token": token,
+		"user": gin.H{
+			"id":    user.ID,
+			"name":  user.Name,
+			"email": user.Email,
+			"role":  user.Role,
+		},
 	})
 }
 
@@ -161,11 +253,11 @@ func (s *Server) GetDriversNearby(c *gin.Context) {
 	defer rows.Close()
 
 	type Driver struct {
-		ID         string  `json:"driver_id"`
-		UserID     string  `json:"user_id"`
-		DistanceM  float64 `json:"distance_m"`
-		Lat        float64 `json:"lat"`
-		Lng        float64 `json:"lng"`
+		ID        string  `json:"driver_id"`
+		UserID    string  `json:"user_id"`
+		DistanceM float64 `json:"distance_m"`
+		Lat       float64 `json:"lat"`
+		Lng       float64 `json:"lng"`
 	}
 
 	var drivers []Driver
@@ -187,11 +279,11 @@ func (s *Server) GetDriversNearby(c *gin.Context) {
 // CreateTrip crea una nueva solicitud de viaje
 func (s *Server) CreateTrip(c *gin.Context) {
 	var body struct {
-		RiderID     string  `json:"rider_id" binding:"required"`
-		OriginLat   float64 `json:"origin_lat" binding:"required"`
-		OriginLng   float64 `json:"origin_lng" binding:"required"`
-		DestLat     float64 `json:"dest_lat" binding:"required"`
-		DestLng     float64 `json:"dest_lng" binding:"required"`
+		RiderID   string  `json:"rider_id" binding:"required"`
+		OriginLat float64 `json:"origin_lat" binding:"required"`
+		OriginLng float64 `json:"origin_lng" binding:"required"`
+		DestLat   float64 `json:"dest_lat" binding:"required"`
+		DestLng   float64 `json:"dest_lng" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&body); err != nil {
@@ -232,7 +324,7 @@ func (s *Server) CreateTrip(c *gin.Context) {
 // AcceptTrip permite a un driver aceptar un viaje
 func (s *Server) AcceptTrip(c *gin.Context) {
 	tripID := c.Param("id")
-	
+
 	var body struct {
 		DriverID string `json:"driver_id" binding:"required"`
 	}

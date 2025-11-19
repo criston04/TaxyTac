@@ -6,6 +6,9 @@ class Trip {
   final Location destination;
   final TripStatus status;
   final double? fare;
+  final double? distance; // km
+  final int? duration; // minutes
+  final Driver? driver;
   final DateTime createdAt;
   final DateTime? acceptedAt;
   final DateTime? startedAt;
@@ -19,6 +22,9 @@ class Trip {
     required this.destination,
     required this.status,
     this.fare,
+    this.distance,
+    this.duration,
+    this.driver,
     required this.createdAt,
     this.acceptedAt,
     this.startedAt,

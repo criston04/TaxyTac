@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import '../core/widgets/app_drawer.dart';
+import '../core/theme/app_theme.dart';
 
 class DriverScreen extends StatefulWidget {
   const DriverScreen({super.key});
@@ -23,9 +25,14 @@ class _DriverScreenState extends State<DriverScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Modo Conductor'),
-        backgroundColor: Colors.green,
+        backgroundColor: AppTheme.secondaryGreen,
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: () {},
+            tooltip: 'Historial de viajes',
+          ),
           // Switch online/offline
           Padding(
             padding: const EdgeInsets.all(8.0),
@@ -54,6 +61,7 @@ class _DriverScreenState extends State<DriverScreen> {
           ),
         ],
       ),
+      drawer: const AppDrawer(),
       body: Column(
         children: [
           // Estadísticas del día

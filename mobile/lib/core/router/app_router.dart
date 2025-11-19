@@ -2,14 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../screens/login_screen.dart';
 import '../../screens/mode_selection_screen.dart';
-import '../../screens/passenger_screen.dart';
+import '../../screens/uber_style_main_screen.dart';
 import '../../screens/driver_screen.dart';
+import '../../screens/trip_history_screen.dart';
+import '../../screens/profile_screen.dart';
+import '../../screens/payment_methods_screen.dart';
+import '../../screens/settings_screen.dart';
+import '../../screens/support_screen.dart';
 
 class AppRouter {
   static const String login = '/';
   static const String modeSelection = '/mode-selection';
   static const String passenger = '/passenger';
   static const String driver = '/driver';
+  static const String tripHistory = '/trip-history';
+  static const String profile = '/profile';
+  static const String paymentMethods = '/payment-methods';
+  static const String vehicle = '/vehicle';
+  static const String earnings = '/earnings';
+  static const String settings = '/settings';
+  static const String support = '/support';
 
   static GoRouter router({required bool isAuthenticated}) {
     return GoRouter(
@@ -41,12 +53,37 @@ class AppRouter {
         GoRoute(
           path: passenger,
           name: 'passenger',
-          builder: (context, state) => const PassengerScreen(),
+          builder: (context, state) => const UberStyleMainScreen(),
         ),
         GoRoute(
           path: driver,
           name: 'driver',
           builder: (context, state) => const DriverScreen(),
+        ),
+        GoRoute(
+          path: tripHistory,
+          name: 'tripHistory',
+          builder: (context, state) => const TripHistoryScreen(),
+        ),
+        GoRoute(
+          path: profile,
+          name: 'profile',
+          builder: (context, state) => const ProfileScreen(),
+        ),
+        GoRoute(
+          path: paymentMethods,
+          name: 'paymentMethods',
+          builder: (context, state) => const PaymentMethodsScreen(),
+        ),
+        GoRoute(
+          path: settings,
+          name: 'settings',
+          builder: (context, state) => const SettingsScreen(),
+        ),
+        GoRoute(
+          path: support,
+          name: 'support',
+          builder: (context, state) => const SupportScreen(),
         ),
       ],
       errorBuilder: (context, state) => Scaffold(
