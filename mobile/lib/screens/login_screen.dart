@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../services/auth_service.dart';
-import 'mode_selection_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../features/auth/presentation/providers/auth_provider.dart';
+import '../features/auth/domain/auth_state.dart';
+import '../core/theme/app_theme.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -18,8 +20,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _phoneController = TextEditingController();
   
   bool _isLogin = true;
-  bool _isLoading = false;
-  String? _errorMessage;
 
   @override
   void dispose() {
@@ -33,44 +33,55 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      if (_isLogin) {
-        await AuthService.login(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-        );
-      } else {
-        await AuthService.register(
-          name: _nameController.text.trim(),
-          email: _emailController.text.trim(),
-          phone: _phoneController.text.trim(),
-          password: _passwordController.text,
-        );
-      }
-
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const ModeSelectionScreen(),
-          ),
-        );
-      }
-    } catch (e) {
-      setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
-        _isLoading = false;
-      });
+    if (_isLogin) {
+      await ref.read(authProvider.notifier).login(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+    } else {
+      await ref.read(authProvider.notifier).register(
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
     }
+
+    // El router automáticamente redirigirá si el login es exitoso
+  }
+
+  Future<void> _demoLogin() async {
+    // Login automático - modo demo sin backend
+    await ref.read(authProvider.notifier).register(
+      name: 'Usuario Demo',
+      email: 'demo${DateTime.now().millisecondsSinceEpoch}@taxytac.pe',
+      password: 'demo123',
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+
+    // Escuchar cambios en el estado de autenticación
+    ref.listen<AuthState>(authProvider, (previous, next) {
+      if (next.isAuthenticated) {
+        // Redirigir a mode selection cuando esté autenticado
+        if (mounted) {
+          context.go('/mode-selection');
+        }
+      } else if (next.error != null) {
+        // Mostrar error
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(next.error!),
+              backgroundColor: AppTheme.error,
+            ),
+          );
+        }
+      }
+    });
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -115,7 +126,52 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 48),
 
-                  // Formulario
+                  // Botón de Demo
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: authState.isLoading ? null : _demoLogin,
+                      icon: const Icon(Icons.play_circle_outline, size: 28),
+                      label: const Text(
+                        'MODO DEMO',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.secondaryGreen,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 8,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Divisor
+                  Row(
+                    children: [
+                      Expanded(child: Divider(color: Colors.white.withOpacity(0.3), thickness: 1)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'o',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.7),
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      Expanded(child: Divider(color: Colors.white.withOpacity(0.3), thickness: 1)),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Formulario de login
                   Card(
                     elevation: 8,
                     shape: RoundedRectangleBorder(
@@ -228,29 +284,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             const SizedBox(height: 24),
 
-                            // Error message
-                            if (_errorMessage != null)
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                margin: const EdgeInsets.only(bottom: 16),
-                                decoration: BoxDecoration(
-                                  color: Colors.red.shade50,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.red.shade200),
-                                ),
-                                child: Text(
-                                  _errorMessage!,
-                                  style: TextStyle(
-                                    color: Colors.red.shade700,
-                                    fontSize: 14,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-
                             // Botón de submit
                             ElevatedButton(
-                              onPressed: _isLoading ? null : _submit,
+                              onPressed: authState.isLoading ? null : _submit,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.orange,
                                 foregroundColor: Colors.white,
@@ -259,7 +295,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              child: _isLoading
+                              child: authState.isLoading
                                   ? const SizedBox(
                                       height: 20,
                                       width: 20,
@@ -283,7 +319,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               onPressed: () {
                                 setState(() {
                                   _isLogin = !_isLogin;
-                                  _errorMessage = null;
                                 });
                               },
                               child: Text(
@@ -291,26 +326,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ? '¿No tienes cuenta? Regístrate'
                                     : '¿Ya tienes cuenta? Inicia sesión',
                                 style: const TextStyle(fontSize: 14),
-                              ),
-                            ),
-
-                            // Demo mode
-                            const SizedBox(height: 8),
-                            TextButton(
-                              onPressed: () {
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const ModeSelectionScreen(),
-                                  ),
-                                );
-                              },
-                              child: const Text(
-                                'Continuar sin cuenta (Demo)',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey,
-                                ),
                               ),
                             ),
                           ],

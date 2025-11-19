@@ -5,6 +5,8 @@ class AuthState extends Equatable {
   final bool isAuthenticated;
   final String? userId;
   final String? userName;
+  final String? userEmail;
+  final String? userPhone;
   final String? userRole;
   final String? token;
   final bool isLoading;
@@ -14,6 +16,8 @@ class AuthState extends Equatable {
     this.isAuthenticated = false,
     this.userId,
     this.userName,
+    this.userEmail,
+    this.userPhone,
     this.userRole,
     this.token,
     this.isLoading = false,
@@ -24,6 +28,8 @@ class AuthState extends Equatable {
       : isAuthenticated = false,
         userId = null,
         userName = null,
+        userEmail = null,
+        userPhone = null,
         userRole = null,
         token = null,
         isLoading = false,
@@ -32,11 +38,15 @@ class AuthState extends Equatable {
   const AuthState.authenticated({
     required String userId,
     required String userName,
+    String? userEmail,
+    String? userPhone,
     required String userRole,
     required String token,
   })  : isAuthenticated = true,
         userId = userId,
         userName = userName,
+        userEmail = userEmail,
+        userPhone = userPhone,
         userRole = userRole,
         token = token,
         isLoading = false,
@@ -46,6 +56,8 @@ class AuthState extends Equatable {
       : isAuthenticated = false,
         userId = null,
         userName = null,
+        userEmail = null,
+        userPhone = null,
         userRole = null,
         token = null,
         isLoading = true,
@@ -55,6 +67,8 @@ class AuthState extends Equatable {
       : isAuthenticated = false,
         userId = null,
         userName = null,
+        userEmail = null,
+        userPhone = null,
         userRole = null,
         token = null,
         isLoading = false,
@@ -64,6 +78,8 @@ class AuthState extends Equatable {
     bool? isAuthenticated,
     String? userId,
     String? userName,
+    String? userEmail,
+    String? userPhone,
     String? userRole,
     String? token,
     bool? isLoading,
@@ -73,6 +89,8 @@ class AuthState extends Equatable {
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
       userId: userId ?? this.userId,
       userName: userName ?? this.userName,
+      userEmail: userEmail ?? this.userEmail,
+      userPhone: userPhone ?? this.userPhone,
       userRole: userRole ?? this.userRole,
       token: token ?? this.token,
       isLoading: isLoading ?? this.isLoading,
@@ -85,6 +103,8 @@ class AuthState extends Equatable {
         isAuthenticated,
         userId,
         userName,
+        userEmail,
+        userPhone,
         userRole,
         token,
         isLoading,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'passenger_screen.dart';
-import 'driver_screen.dart';
+import 'package:go_router/go_router.dart';
+import '../core/widgets/app_drawer.dart';
+import '../core/theme/app_theme.dart';
 
 class ModeSelectionScreen extends StatelessWidget {
   const ModeSelectionScreen({super.key});
@@ -8,6 +9,12 @@ class ModeSelectionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: Colors.white,
+      ),
+      drawer: const AppDrawer(),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -68,15 +75,8 @@ class ModeSelectionScreen extends StatelessWidget {
                   icon: Icons.person,
                   title: 'Soy Pasajero',
                   description: 'Solicita una moto bajaj',
-                  color: Colors.blue,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const PassengerScreen(),
-                      ),
-                    );
-                  },
+                  color: AppTheme.secondaryBlue,
+                  onTap: () => context.go('/passenger'),
                 ),
                 const SizedBox(height: 16),
 
@@ -85,21 +85,14 @@ class ModeSelectionScreen extends StatelessWidget {
                   icon: Icons.motorcycle,
                   title: 'Soy Conductor',
                   description: 'Acepta viajes y gana dinero',
-                  color: Colors.green,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const DriverScreen(),
-                      ),
-                    );
-                  },
+                  color: AppTheme.secondaryGreen,
+                  onTap: () => context.go('/driver'),
                 ),
                 const Spacer(),
 
                 // Footer
                 Text(
-                  'v1.0.0 • Lima, Perú 🇵🇪',
+                  'v2.0.0 Professional • Lima, Perú 🇵🇪',
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.7),
                     fontSize: 12,

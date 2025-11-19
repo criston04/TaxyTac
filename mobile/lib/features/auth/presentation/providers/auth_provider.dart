@@ -19,12 +19,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final token = await _storage.read(key: AppConstants.keyAuthToken);
       final userId = await _storage.read(key: AppConstants.keyUserId);
       final userName = await _storage.read(key: AppConstants.keyUserName);
+      final userEmail = await _storage.read(key: 'userEmail');
+      final userPhone = await _storage.read(key: 'userPhone');
       final userRole = await _storage.read(key: AppConstants.keyUserRole);
 
       if (token != null && userId != null && userName != null && userRole != null) {
         state = AuthState.authenticated(
           userId: userId,
           userName: userName,
+          userEmail: userEmail,
+          userPhone: userPhone,
           userRole: userRole,
           token: token,
         );
@@ -60,12 +64,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
         token: token,
         userId: user['id'].toString(),
         userName: user['name'] as String,
+        userEmail: user['email'] as String?,
+        userPhone: user['phone'] as String?,
         userRole: user['role'] as String? ?? 'passenger',
       );
 
       state = AuthState.authenticated(
         userId: user['id'].toString(),
         userName: user['name'] as String,
+        userEmail: user['email'] as String?,
+        userPhone: user['phone'] as String?,
         userRole: user['role'] as String? ?? 'passenger',
         token: token,
       );
@@ -104,12 +112,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
         token: token,
         userId: user['id'].toString(),
         userName: user['name'] as String,
+        userEmail: user['email'] as String?,
+        userPhone: user['phone'] as String?,
         userRole: user['role'] as String? ?? 'passenger',
       );
 
       state = AuthState.authenticated(
         userId: user['id'].toString(),
         userName: user['name'] as String,
+        userEmail: user['email'] as String?,
+        userPhone: user['phone'] as String?,
         userRole: user['role'] as String? ?? 'passenger',
         token: token,
       );
@@ -139,11 +151,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String token,
     required String userId,
     required String userName,
+    String? userEmail,
+    String? userPhone,
     required String userRole,
   }) async {
     await _storage.write(key: AppConstants.keyAuthToken, value: token);
     await _storage.write(key: AppConstants.keyUserId, value: userId);
     await _storage.write(key: AppConstants.keyUserName, value: userName);
+    if (userEmail != null) {
+      await _storage.write(key: 'userEmail', value: userEmail);
+    }
+    if (userPhone != null) {
+      await _storage.write(key: 'userPhone', value: userPhone);
+    }
     await _storage.write(key: AppConstants.keyUserRole, value: userRole);
   }
 }
