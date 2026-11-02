@@ -31,6 +31,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _submit() async {
+
     if (!_formKey.currentState!.validate()) return;
 
     if (_isLogin) {
@@ -129,18 +130,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   // Botón de Demo
                   SizedBox(
                     width: double.infinity,
+
                     child: ElevatedButton.icon(
                       onPressed: authState.isLoading ? null : _demoLogin,
                       icon: const Icon(Icons.play_circle_outline, size: 28),
+
                       label: const Text(
                         'MODO DEMO',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
+
                         ),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.secondaryGreen,
+                        
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
